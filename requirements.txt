@@ -1,0 +1,29 @@
+# Сначала указываем основной репозиторий, а затем — приоритетный для PyTorch
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+# Core Deep Learning (версии под CUDA 12.4)
+torch==2.5.1+cu124
+torchvision==0.20.1+cu124
+torchaudio==2.5.1+cu124
+
+# TensorRT (NVIDIA библиотеки для инференса)
+tensorrt==10.4.0
+tensorrt-cu12==10.4.0
+tensorrt-lean==10.4.0
+tensorrt-dispatch==10.4.0
+
+# Вспомогательные библиотеки для CV и YOLO
+numpy>=1.24.0,<2.0.0
+opencv-python>=4.8.0
+#ultralytics>=8.1.0  # Если YOLO26 базируется на инфраструктуре Ultralytics
+onnx>=1.15.0
+onnxruntime-gpu>=1.17.0
+
+# Визуализация и анализ (полезно для статьи)
+matplotlib
+scipy
+pandas
+tqdm
+pyyaml
+torchmetrics
+pycocotools
