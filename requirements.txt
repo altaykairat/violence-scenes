@@ -7,10 +7,10 @@ torchvision==0.20.1+cu124
 torchaudio==2.5.1+cu124
 
 # TensorRT (NVIDIA библиотеки для инференса)
-tensorrt==10.4.0
-tensorrt-cu12==10.4.0
-tensorrt-lean==10.4.0
-tensorrt-dispatch==10.4.0
+#tensorrt==10.4.0
+#tensorrt-cu12==10.4.0
+#tensorrt-lean==10.4.0
+#tensorrt-dispatch==10.4.0
 
 # Вспомогательные библиотеки для CV и YOLO
 numpy>=1.24.0,<2.0.0

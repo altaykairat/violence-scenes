@@ -1,0 +1,136 @@
+import torch
+import torch.nn as nn
+
+class Bottleneck(nn.Module):
+    def __init__(self, in_channels, bottleneck_channels, out_channels, downsample = None, stride=1):
+        super(Bottleneck, self).__init__()
+
+        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=bottleneck_channels, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(bottleneck_channels)
+
+        self.conv2 = nn.Conv2d(in_channels=bottleneck_channels , out_channels=bottleneck_channels , kernel_size=3 , padding=1, bias=False, stride=stride)
+        self.bn2 = nn.BatchNorm2d(bottleneck_channels)
+
+        self.conv3 = nn.Conv2d(in_channels=bottleneck_channels, out_channels=out_channels, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(out_channels)
+
+        self.relu = nn.ReLU(inplace=True)
+
+        self.downsample = downsample
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample != None:
+            identity = self.downsample(identity)
+
+        out = out + identity
+        out = self.relu(out)
+
+        return out
+    
+class ResNet(nn.Module):
+    def __init__(self, block, num_blocks, num_classes = 1000):
+        super(ResNet, self).__init__()
+
+        self.in_channels = 64
+
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride = 2, padding = 3, bias = False)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        self.layer1 = self._make_layer(block, bottleneck_channels = 64, out_channels = 256, blocks = num_blocks[0], stride = 1)
+        self.layer2 = self._make_layer(block, bottleneck_channels = 128, out_channels = 512, blocks = num_blocks[1], stride = 2)
+        self.layer3 = self._make_layer(block, bottleneck_channels = 256, out_channels = 1024, blocks = num_blocks[2], stride = 2)
+        self.layer4 = self._make_layer(block, bottleneck_channels = 512, out_channels = 2048, blocks = num_blocks[3], stride = 2)
+
+        self.avgpool = nn.AdaptiveAvgPool2d((1,1))
+        self.fc = nn.Linear(512*4, num_classes)
+
+    def _make_layer(self, block, bottleneck_channels, out_channels, blocks, stride):
+        downsample = None
+
+        if stride !=1 or self.in_channels != out_channels:
+            downsample = nn.Sequential(nn.Conv2d(self.in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
+                                       nn.BatchNorm2d(out_channels),
+                                       )
+            
+        layers = []
+        layers.append(
+            block(self.in_channels, bottleneck_channels, out_channels, downsample, stride))
+            
+        self.in_channels = out_channels
+
+        for _ in range(1, blocks):
+            layers.append(block(self.in_channels, bottleneck_channels, out_channels, downsample = None, stride=1))
+            pass
+        return nn.Sequential(*layers)
+    
+    def forward(self,x):
+        id = x
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.maxpool(out)
+
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+
+        out= self.avgpool(out)
+
+        out= torch.flatten(out,1)
+
+        out = self.fc(out)
+
+        return out
+    
+class TSM(nn.Module):
+    def __init__(self, net, n_segments=8, n_div=8):
+        super(TSM, self).__init__()
+        self.net = net
+        self.n_segments = n_segments
+        self.fold_dim = n_div
+
+    def forward(self,x):
+        nt,c,h,w = x.size()
+        n_batch = nt // self.n_segments
+
+        x = x.view(n_batch, self.n_segments, c, h, w)
+
+        fold = c // self.fold_dim
+
+        out = torch.zeros_like(x)
+
+        out[:,:-1,:fold,:,:] = x[:,1:,:fold,:,:]
+
+        out[:,1:,fold:2*fold,:,:] = x[:,:-1,fold:2*fold,:,:]
+
+        out[:,:,2*fold:,:,:] = x[:,:,2*fold:,:,:]
+
+        return self.net(out.view(nt,c,h,w))
+
+
+def resnet50(num_classes=1000):
+        return ResNet(Bottleneck, [3,4,6,3], num_classes=num_classes)
+    
+model = resnet50()
+
+img = torch.randn(1,3,224,224)
+
+output = model(img)
+
+print(output.shape)
