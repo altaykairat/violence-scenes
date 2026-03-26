@@ -41,10 +41,11 @@ class Bottleneck(nn.Module):
         return out
     
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes = 1000):
+    def __init__(self, block, num_blocks, num_classes = 1000, n_segments=8):
         super(ResNet, self).__init__()
 
         self.in_channels = 64
+        self.n_segments = n_segments
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride = 2, padding = 3, bias = False)
         self.bn1 = nn.BatchNorm2d(64)
@@ -69,12 +70,12 @@ class ResNet(nn.Module):
             
         layers = []
         layers.append(
-            block(self.in_channels, bottleneck_channels, out_channels, downsample, stride))
+            block(self.in_channels, bottleneck_channels, out_channels, downsample, stride, n_segments = self.n_segments))
             
         self.in_channels = out_channels
 
         for _ in range(1, blocks):
-            layers.append(block(self.in_channels, bottleneck_channels, out_channels, downsample = None, stride=1))
+            layers.append(block(self.in_channels, bottleneck_channels, out_channels, downsample = None, stride=1, n_segments = self.n_segments))
             pass
         return nn.Sequential(*layers)
     
@@ -95,6 +96,10 @@ class ResNet(nn.Module):
         out= torch.flatten(out,1)
 
         out = self.fc(out)
+
+        n_batch = out.size(0) // self.n_segments
+        out = out.view(n_batch, self.n_segments, out.size(1))
+        out = out.mean(dim = 1)
 
         return out
     
