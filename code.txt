@@ -142,13 +142,13 @@ class TSM(nn.Module):
         return self.net(out.view(nt, c, h, w))
 
 
-def resnet50(num_classes=1000):
-    return ResNet(Bottleneck, [3, 4, 6, 3], num_classes=num_classes)
+def resnet50(n_segments=8, num_classes=1000):
+    return ResNet(Bottleneck, [3, 4, 6, 3], num_classes=num_classes, n_segments=n_segments)
 
 
-model = resnet50()
+model = resnet50(n_segments=8)
 
-img = torch.randn(1, 3, 224, 224)
+img = torch.randn(8, 3, 224, 224)
 
 output = model(img)
 
